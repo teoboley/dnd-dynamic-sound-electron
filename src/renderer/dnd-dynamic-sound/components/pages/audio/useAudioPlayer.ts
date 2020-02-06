@@ -59,11 +59,10 @@ async function processSources(
       const toneReverb = (await new Tone.Reverb().generate()).toDestination();
       toneReverb.wet.value = reverb;
 
-      const audioData = source.audioData;
-      console.log(sourceId, audioData);
-      const audioBuffer = await Tone.getContext().decodeAudioData(audioData);
+      const audioFileUrl = source.audioFileUrl;
+      console.log(sourceId, 'audio file url', audioFileUrl);
 
-      const player = new Tone.Player(audioBuffer).sync().chain(toneReverb);
+      const player = new Tone.Player(audioFileUrl).sync().chain(toneReverb);
       player.volume.value = volume;
       player.mute = muted;
       player.autostart = true;

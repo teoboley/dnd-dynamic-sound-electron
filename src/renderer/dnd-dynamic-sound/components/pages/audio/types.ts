@@ -52,7 +52,7 @@ export function isBaseSoundSource(
 }
 
 export interface ISoundSource extends IBaseSoundSource {
-  audioData: ArrayBuffer;
+  audioFileUrl: string;
 }
 
 export function isSoundSource(possiblySoundSource: any): possiblySoundSource is ISoundSource {
@@ -60,7 +60,8 @@ export function isSoundSource(possiblySoundSource: any): possiblySoundSource is 
   // noinspection SuspiciousTypeOfGuard
   return (
     isBaseSoundSource(assumedSoundSource) &&
-    assumedSoundSource.audioData !== undefined && typeof assumedSoundSource.audioData === 'object'
+    assumedSoundSource.audioFileUrl !== undefined &&
+    typeof assumedSoundSource.audioFileUrl === 'string'
   );
 }
 
