@@ -1,6 +1,6 @@
 {
   "name": "dnd-dynamic-sound-electron",
-  "productName": "dnd-dynamic-sound-electron",
+  "productName": "Dynamic Sound",
   "version": "1.0.0",
   "description": "My Electron application description",
   "main": ".webpack/main",
@@ -69,7 +69,9 @@
   },
   "config": {
     "forge": {
-      "packagerConfig": {},
+      "packagerConfig": {
+        "icon": "./icon.icns"
+      },
       "makers": [
         {
           "name": "@electron-forge/maker-squirrel",
