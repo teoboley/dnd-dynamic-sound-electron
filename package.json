@@ -1,6 +1,6 @@
 {
-  "name": "dnd-dynamic-sound-electron-2",
-  "productName": "dnd-dynamic-sound-electron-2",
+  "name": "dnd-dynamic-sound-electron",
+  "productName": "dnd-dynamic-sound-electron",
   "version": "1.0.0",
   "description": "My Electron application description",
   "main": ".webpack/main",
