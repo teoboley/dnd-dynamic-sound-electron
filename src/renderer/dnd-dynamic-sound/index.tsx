@@ -20,9 +20,11 @@ const DndDynamicSound: React.FC<IDndDynamicSoundProps> = props => {
       <Container>
         {sceneSet ? (
           <Audio
+            key={sceneSet.key}
             sceneSet={sceneSet}
             selectedSceneId={selectedSceneId}
-            selectScene={setSelectedSceneId}
+            onSceneSelected={setSelectedSceneId}
+            onNewSceneSetLoaded={setSceneSet}
           />
         ) : (
           <SetupPage onSelectedSceneSet={setSceneSet} />

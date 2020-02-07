@@ -143,6 +143,7 @@ export function isScenes(possiblyScenes: any): possiblyScenes is IScenes {
 }
 
 export interface ISceneSet {
+  key: string;
   sources: ISoundSources;
   scenes: IScenes;
 }

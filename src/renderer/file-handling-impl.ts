@@ -19,6 +19,7 @@ const fileHandlingHelper: IFileHandlingHelper = {
       const parsedObj = JSON.parse(definitionFileContents);
       if (isSceneSetJSON(parsedObj)) {
         const transformedSceneSet: ISceneSet = {
+          key: definitionFilePath,
           scenes: parsedObj.scenes,
           sources: Object.keys(parsedObj.sources).reduce<ISoundSources>((acc, sourceId) => {
             const { audioFilename, ...source } = parsedObj.sources[sourceId];

@@ -13,6 +13,10 @@ export const TopBar = styled.div({
   marginBottom: 10
 });
 
+export const ControlList = styled.div({
+  display: 'flex'
+});
+
 export const PlayerButton = styled.button({
   border: 0,
   padding: 0,
