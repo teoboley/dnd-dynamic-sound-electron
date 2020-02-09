@@ -1,11 +1,8 @@
 import React from 'react';
+import { ISounds, ISoundSources } from '../types';
 import * as Tone from 'tone';
-import { BarsBeatsSixteenths, Time } from 'tone/build/esm/core/type/Units';
-import { ISounds, ISoundSources } from './types';
-import { usePrevious } from '../../../hooks';
-
-// global tone config
-Tone.context.latencyHint = 'playback';
+import { usePrevious } from '../../../../hooks';
+import { loopPlayer, processSources } from './utils';
 
 export enum EPlaybackStatus {
   Started,
@@ -13,137 +10,161 @@ export enum EPlaybackStatus {
   Paused
 }
 
-interface IInternalSoundRegistryItem {
+export interface IInternalSoundRegistryItem {
   id: string;
   player: Tone.Player;
   reverb: Tone.Reverb;
   loopEvent: Tone.Loop;
 }
 
-type IInternalSoundRegistry = IInternalSoundRegistryItem[];
+export type IInternalSoundRegistry = IInternalSoundRegistryItem[];
 
-function loopPlayer(
-  player: Tone.Player,
-  loopEvent: Tone.Loop,
-  looping: boolean,
-  loopInterval: Time | null
-) {
-  if (loopInterval) {
-    player.loop = false;
-    loopEvent.interval = loopInterval;
-    if (looping) loopEvent.start();
-  } else {
-    // this is buggy - it ignores the transport timeline
-    player.loop = looping;
-    if (looping && Tone.Transport.state === 'started') player.seek(0);
-  }
-}
-
-async function processSources(
-  sources: ISoundSources,
-  sounds: ISounds
-): Promise<IInternalSoundRegistry> {
-  console.log('processing sources');
-
-  return Promise.all(
-    Object.keys(sources).map<Promise<IInternalSoundRegistryItem>>(async sourceId => {
-      const source = sources[sourceId];
-      const sound = sounds[sourceId];
-
-      const muted = !sound.enabled;
-      const volume = sound.volume;
-      const looping = sound.looping;
-      const loopInterval = sound.loopInterval;
-      const reverb = sound.reverb;
-
-      const toneReverb = (await new Tone.Reverb().generate()).toDestination();
-      toneReverb.wet.value = reverb;
-
-      const audioFileUrl = source.audioFileUrl;
-      console.log(sourceId, 'audio file url', audioFileUrl);
-
-      const player = new Tone.Player(audioFileUrl).sync().chain(toneReverb);
-      player.volume.value = volume;
-      player.mute = muted;
-      player.autostart = true;
-
-      const loopEvent = new Tone.Loop(time => {
-        player.start(time);
-      });
-
-      loopPlayer(player, loopEvent, looping, loopInterval);
-
-      return {
-        id: sourceId,
-        player,
-        reverb: toneReverb,
-        loopEvent
-      };
-    })
-  );
-}
-
-interface IAudioPlayerHookResult {
+interface IPlayerContext {
   loaded: boolean;
   loadingError: string | null;
-  isTransitioning: boolean;
   playbackStatus: EPlaybackStatus;
-  position: BarsBeatsSixteenths | Time;
+  position: string;
+
+  internalSoundRegistryRef: React.MutableRefObject<IInternalSoundRegistry>;
+  setSourcesLoaded(loaded: boolean): void;
+  setSourcesLoadError(err: string): void;
   start(): void;
   stop(): void;
   pause(): void;
 }
 
-export default function useAudioPlayer(
-  sources: ISoundSources,
-  sounds: ISounds,
-  transitionKey: string,
-  transitionTimeSeconds: number | null
-): IAudioPlayerHookResult {
+const missingPlayerContextValueErrorMsg =
+  'PlayerContext has not been defined yet - please wrap a top-level component in a <PlayerProvider>...</PlayerProvider>';
+const PlayerContext = React.createContext<IPlayerContext>({
+  loaded: false,
+  loadingError: null,
+  playbackStatus: EPlaybackStatus.Stopped,
+  position: '0:0:00',
+  internalSoundRegistryRef: null,
+  setSourcesLoaded(loaded: boolean): void {
+    throw new Error(missingPlayerContextValueErrorMsg);
+  },
+  setSourcesLoadError(err: string): void {
+    throw new Error(missingPlayerContextValueErrorMsg);
+  },
+  start(): void {
+    throw new Error(missingPlayerContextValueErrorMsg);
+  },
+  stop(): void {
+    throw new Error(missingPlayerContextValueErrorMsg);
+  },
+  pause(): void {
+    throw new Error(missingPlayerContextValueErrorMsg);
+  }
+});
+
+Tone.context.latencyHint = 'playback';
+
+export interface IPlayerProviderProps {}
+
+export const PlayerProvider: React.FC<IPlayerProviderProps> = props => {
   const [loaded, setLoaded] = React.useState<boolean>(false);
   const [loadingError, setLoadingError] = React.useState<string | null>(null);
   // general state
   const [playbackStatus, setPlaybackStatus] = React.useState<EPlaybackStatus>(
     EPlaybackStatus.Stopped
   );
-  const [position, setPosition] = React.useState<BarsBeatsSixteenths | Time>(
-    Tone.Transport.position
-  );
+  const [position, setPosition] = React.useState<string>(Tone.Transport.position as string);
   useAnimationFrame(() => {
-    setPosition(Tone.Transport.position);
+    setPosition(Tone.Transport.position as string);
   });
-  const [isTransitioning, setIsTransitioning] = React.useState(false);
 
-  // event state
   const soundRegistry = React.useRef<IInternalSoundRegistry>([]);
 
+  return (
+    <PlayerContext.Provider
+      value={{
+        loaded,
+        loadingError,
+        playbackStatus,
+        position,
+        internalSoundRegistryRef: soundRegistry,
+        setSourcesLoaded(loaded: boolean): void {
+          setLoaded(loaded);
+        },
+        setSourcesLoadError(err: string): void {
+          setLoadingError(err);
+        },
+        async start(): Promise<void> {
+          await Tone.start();
+          Tone.Transport.start('+0.1');
+          setPlaybackStatus(EPlaybackStatus.Started);
+        },
+        stop(): void {
+          Tone.Transport.stop();
+          setPlaybackStatus(EPlaybackStatus.Stopped);
+        },
+        pause(): void {
+          Tone.Transport.pause();
+          setPlaybackStatus(EPlaybackStatus.Paused);
+        }
+      }}
+    >
+      {props.children}
+    </PlayerContext.Provider>
+  );
+};
+
+export interface IUsePlayerPayload {
+  loaded: boolean;
+  loadingError: string | null;
+  playbackStatus: EPlaybackStatus;
+  position: string;
+  isTransitioning: boolean;
+  start(): void;
+  stop(): void;
+  pause(): void;
+}
+
+export function usePlayer(
+  sources: ISoundSources,
+  sounds: ISounds,
+  transitionKey: string,
+  transitionTimeSeconds: number | null
+): IUsePlayerPayload {
+  const [isTransitioning, setIsTransitioning] = React.useState(false);
+
+  const playerContext = React.useContext(PlayerContext);
+
+  const clearOldState = () => {
+    playerContext.stop();
+    for (const oldSound of playerContext.internalSoundRegistryRef.current) {
+      oldSound.reverb.dispose();
+      oldSound.player.dispose();
+      oldSound.loopEvent.dispose();
+    }
+    playerContext.internalSoundRegistryRef.current = [];
+  };
+
   React.useEffect(() => {
+    clearOldState();
     processSources(sources, sounds).then(newRegistry => {
-      soundRegistry.current = newRegistry;
+      playerContext.internalSoundRegistryRef.current = newRegistry;
+      // initial load
+      Tone.ToneAudioBuffer.loaded()
+        .then(() => {
+          console.log('LOADED');
+          playerContext.setSourcesLoaded(true);
+        })
+        .catch(e => {
+          console.warn(e);
+          playerContext.setSourcesLoadError('LOADING FAILED');
+        });
     });
-    // initial load
-    Tone.ToneAudioBuffer.loaded()
-      .then(() => {
-        console.log('LOADED');
-        setLoaded(true);
-      })
-      .catch(e => {
-        console.warn(e);
-        setLoadingError('LOADING FAILED');
-      });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   React.useEffect(() => {
     console.log('SOURCES CHANGED');
-    for (const oldSound of soundRegistry.current) {
-      oldSound.reverb.dispose();
-      oldSound.player.dispose();
-      oldSound.loopEvent.dispose();
-    }
+    clearOldState();
 
     processSources(sources, sounds).then(newRegistry => {
-      soundRegistry.current = newRegistry;
+      playerContext.internalSoundRegistryRef.current = newRegistry;
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sources]);
@@ -156,14 +177,16 @@ export default function useAudioPlayer(
         transitionKey === prevTransitionKey ||
         transitionTimeSeconds === null ||
         transitionTimeSeconds === 0 ||
-        playbackStatus !== EPlaybackStatus.Started;
+        playerContext.playbackStatus !== EPlaybackStatus.Started;
       // console.log(isImmediateTransition ? "IMMEDIATE TRANSITION" : "SLOW TRANSITION");
 
       // handle sound changes
       for (const soundId of Object.keys(sounds)) {
         const newSound = sounds[soundId];
         const prevSound = prevSounds[soundId];
-        const { player, loopEvent, reverb } = soundRegistry.current.find(s => s.id === soundId)!;
+        const { player, loopEvent, reverb } = playerContext.internalSoundRegistryRef.current.find(
+          s => s.id === soundId
+        )!;
 
         if (isImmediateTransition) {
           // immediate change
@@ -236,27 +259,11 @@ export default function useAudioPlayer(
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sounds, transitionKey, transitionTimeSeconds, playbackStatus]);
+  }, [sounds, transitionKey, transitionTimeSeconds, playerContext.playbackStatus]);
 
   return {
-    loaded,
-    loadingError,
-    position,
-    isTransitioning,
-    playbackStatus,
-    async start() {
-      await Tone.start();
-      Tone.Transport.start('+0.1');
-      setPlaybackStatus(EPlaybackStatus.Started);
-    },
-    stop() {
-      Tone.Transport.stop();
-      setPlaybackStatus(EPlaybackStatus.Stopped);
-    },
-    pause() {
-      Tone.Transport.pause();
-      setPlaybackStatus(EPlaybackStatus.Paused);
-    }
+    ...playerContext,
+    isTransitioning
   };
 }
 

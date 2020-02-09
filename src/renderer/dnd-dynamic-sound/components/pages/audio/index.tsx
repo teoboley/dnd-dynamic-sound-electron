@@ -1,5 +1,4 @@
 import React from 'react';
-import useAudioPlayer, { EPlaybackStatus } from './useAudioPlayer';
 import {
   SoundGrid,
   Container,
@@ -9,12 +8,14 @@ import {
   StyledSound,
   TopBar,
   ErrorMessage,
-  SoundGridWrapper, ControlList
+  SoundGridWrapper,
+  ControlList
 } from './styles';
 import { ISceneSet } from './types';
-import useSceneState from './useSceneState';
+import useSceneState, { SCRATCH_SCENE_ID } from './useSceneState';
 import Icon, { EIconName } from '../../atoms/icon';
-import { useFileHandlingHelper } from "../../shared/file-handling";
+import { useFileHandlingHelper } from '../../shared/file-handling';
+import { usePlayer, EPlaybackStatus } from './player';
 
 interface IAudioViewModel {
   sceneSet: ISceneSet;
@@ -39,7 +40,7 @@ const Audio: React.FC<IAudioProps> = props => {
     setSoundReverb
   } = useSceneState(soundSources, baseScenes);
   const currentSceneState = sceneStates[props.selectedSceneId];
-  const audio = useAudioPlayer(soundSources, currentSceneState, props.selectedSceneId, 5);
+  const audio = usePlayer(soundSources, currentSceneState, props.selectedSceneId, 5);
 
   const fileHandlingHelper = useFileHandlingHelper();
 
@@ -65,13 +66,18 @@ const Audio: React.FC<IAudioProps> = props => {
           >
             <Icon name={EIconName.Stop} />
           </PlayerButton>
-          { props.onNewSceneSetLoaded &&
-            <input type={"file"} accept={"application/json"} onChange={async ({ target: { files } }) => {
-              if (files.length === 0) return;
-              const newSceneSet = await fileHandlingHelper.loadSceneSet(files[0].path);
-              props.onNewSceneSetLoaded(newSceneSet);
-            }}/>
-          }
+          {props.onNewSceneSetLoaded && (
+            <input
+              type={'file'}
+              accept={'application/json'}
+              onChange={async ({ target: { files } }) => {
+                if (files.length === 0) return;
+                const newSceneSet = await fileHandlingHelper.loadSceneSet(files[0].path);
+                props.onSceneSelected(SCRATCH_SCENE_ID);
+                props.onNewSceneSetLoaded(newSceneSet);
+              }}
+            />
+          )}
         </ControlList>
         <SceneList transitioningBetweenScenes={audio.isTransitioning}>
           {Object.keys(sceneStates).map(sceneId => {

@@ -2,7 +2,7 @@ import { app, BrowserWindow } from 'electron';
 
 declare const MAIN_WINDOW_WEBPACK_ENTRY: string;
 
-const isDevelopment: boolean = process.env.NODE_ENV?.toLowerCase() === "development" || false;
+const isDevelopment: boolean = process.env.NODE_ENV?.toLowerCase() === 'development' || false;
 
 // Handle creating/removing shortcuts on Windows when installing/uninstalling.
 if (require('electron-squirrel-startup')) {
