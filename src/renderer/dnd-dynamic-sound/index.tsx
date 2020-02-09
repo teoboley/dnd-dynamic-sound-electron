@@ -6,6 +6,7 @@ import SetupPage from './components/pages/setup';
 import './index.css';
 import { FileHandlingHelperProvider, IFileHandlingHelper } from './components/shared/file-handling';
 import { Container } from './styles';
+import { PlayerProvider } from './components/pages/audio/player';
 
 export interface IDndDynamicSoundProps {
   fileHandlingHelper: IFileHandlingHelper;
@@ -17,17 +18,21 @@ const DndDynamicSound: React.FC<IDndDynamicSoundProps> = props => {
 
   return (
     <FileHandlingHelperProvider value={props.fileHandlingHelper}>
-      <Container>
-        {sceneSet ? (
-          <Audio
-            sceneSet={sceneSet}
-            selectedSceneId={selectedSceneId}
-            selectScene={setSelectedSceneId}
-          />
-        ) : (
-          <SetupPage onSelectedSceneSet={setSceneSet} />
-        )}
-      </Container>
+      <PlayerProvider>
+        <Container>
+          {sceneSet ? (
+            <Audio
+              key={sceneSet.key}
+              sceneSet={sceneSet}
+              selectedSceneId={selectedSceneId}
+              onSceneSelected={setSelectedSceneId}
+              onNewSceneSetLoaded={setSceneSet}
+            />
+          ) : (
+            <SetupPage onSelectedSceneSet={setSceneSet} />
+          )}
+        </Container>
+      </PlayerProvider>
     </FileHandlingHelperProvider>
   );
 };
