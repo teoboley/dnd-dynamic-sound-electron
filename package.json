@@ -51,7 +51,7 @@
     "@typescript-eslint/parser": "2.x",
     "babel-eslint": "10.x",
     "css-loader": "^3.0.0",
-    "electron": "8.0.0",
+    "electron": "9.4.0",
     "eslint": "6.x",
     "eslint-config-react-app": "^5.2.0",
     "eslint-plugin-flowtype": "3.x",
